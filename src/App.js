@@ -8,6 +8,7 @@ import 'antd/dist/reset.css';
 import * as api from './services/api';
 import config from './config';
 
+
 const { Header, Content, Footer } = Layout;
 const { Dragger } = Upload;
 const { Text } = Typography;
