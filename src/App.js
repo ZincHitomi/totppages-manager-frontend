@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Layout, Menu, Button, Table, Input, Upload, message, Modal, Popconfirm, Switch, Radio, List, Card, Typography, Space, Empty, Spin, Alert } from 'antd';
-import { PlusOutlined, UploadOutlined, QrcodeOutlined, ClearOutlined, SyncOutlined, GithubOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, UploadOutlined, QrcodeOutlined, ClearOutlined, SyncOutlined, DeleteOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-layout';
 import { QRCodeSVG } from 'qrcode.react';
 import jsQR from 'jsqr';
@@ -10,7 +10,7 @@ import config from './config';
 
 const { Header, Content, Footer } = Layout;
 const { Dragger } = Upload;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const CountdownTimer = React.memo(({ onComplete }) => {
   const [countdown, setCountdown] = useState(30);
