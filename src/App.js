@@ -1,47 +1,60 @@
-import React, {useState, useEffect, useCallback, useMemo} from 'react';
-import {
-    Layout,
-    Menu,
-    Button,
-    Table,
-    Input,
-    Upload,
-    message,
-    Modal,
-    Popconfirm,
-    Switch,
-    Radio,
-    List,
-    Card,
-    Typography,
-    Space,
-    Empty,
-    Spin,
-    Alert,
-    Row,
-    Col,
-    Drawer
-} from 'antd';
-import {
-    PlusOutlined,
-    UploadOutlined,
-    QrcodeOutlined,
-    ClearOutlined,
-    SyncOutlined,
-    DeleteOutlined,
-    MenuOutlined
-} from '@ant-design/icons';
-import {PageContainer} from '@ant-design/pro-layout';
-import {QRCodeSVG} from 'qrcode.react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Layout, Menu, Button, Table, Input, Upload, message, Modal, Popconfirm, Switch, Radio, List, Card, Typography, Space, Empty, Spin, Alert, Drawer } from 'antd';
+import { PlusOutlined, UploadOutlined, QrcodeOutlined, ClearOutlined, SyncOutlined, DeleteOutlined, MenuOutlined } from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-layout';
+import { QRCodeSVG } from 'qrcode.react';
 import jsQR from 'jsqr';
 import 'antd/dist/reset.css';
 import * as api from './services/api';
 import config from './config';
-import {useMediaQuery} from 'react-responsive';
+import { useMediaQuery } from 'react-responsive';
 
-const {Header, Content, Footer, Sider} = Layout;
-const {Dragger} = Upload;
-const {Text} = Typography;
+const { Header, Content, Footer } = Layout;
+const { Dragger } = Upload;
+const { Title, Text } = Typography;
+
+const CountdownTimer = React.memo(({ onComplete }) => {
+    const [countdown, setCountdown] = useState(30);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCountdown((prevCount) => {
+                if (prevCount === 1) {
+                    clearInterval(timer);
+                    onComplete();
+                    return 30;
+                }
+                return prevCount - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [onComplete]);
+
+    const radius = 15;
+    const circumference = 2 * Math.PI * radius;
+    const dashoffset = circumference * (1 - countdown / 30);
+
+    return (
+        <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r={radius} fill="none" stroke="#e6e6e6" strokeWidth="4" />
+            <circle
+                cx="20"
+                cy="20"
+                r={radius}
+                fill="none"
+                stroke="#1890ff"
+                strokeWidth="4"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashoffset}
+                transform="rotate(-90 20 20)"
+            />
+            <text x="20" y="20" textAnchor="middle" dy=".3em" fontSize="12">
+                {countdown}
+            </text>
+        </svg>
+    );
+});
 
 function App() {
     const [totps, setTotps] = useState([]);
@@ -57,11 +70,10 @@ function App() {
     const [backupVersions, setBackupVersions] = useState([]);
     const [restoreModalVisible, setRestoreModalVisible] = useState(false);
     const [isLoadingBackups, setIsLoadingBackups] = useState(false);
-    const [importStatus, setImportStatus] = useState({loading: false, count: 0});
+    const [importStatus, setImportStatus] = useState({ loading: false, count: 0 });
     const [drawerVisible, setDrawerVisible] = useState(false);
-    const [collapsed, setCollapsed] = useState(false);
 
-    const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
+    const isDesktopOrLaptop = useMediaQuery({ minWidth: 1024 });
 
     const loadTOTPs = useCallback(async () => {
         try {
@@ -125,7 +137,7 @@ function App() {
             if (response.data.error) {
                 message.error(response.data.error);
             } else {
-                setTokens(prev => ({...prev, [id]: response.data.token}));
+                setTokens(prev => ({ ...prev, [id]: response.data.token }));
             }
         } catch (error) {
             console.error('令牌生成失败:', error);
@@ -149,6 +161,34 @@ function App() {
         }
     }, []);
 
+    const downloadQRCode = () => {
+        try {
+            const svg = document.getElementById("qr-code-canvas");
+            if (!svg) {
+                throw new Error("QR code SVG not found");
+            }
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const img = new Image();
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                const pngFile = canvas.toDataURL("image/png");
+                const downloadLink = document.createElement("a");
+                downloadLink.download = "qrcode.png";
+                downloadLink.href = pngFile;
+                downloadLink.click();
+            };
+            img.src = "data:image/svg+xml;base64," + btoa(svgData);
+            message.success("QR code downloaded successfully");
+        } catch (error) {
+            console.error("Error downloading QR code:", error);
+            message.error(`Failed to download QR code: ${error.message}`);
+        }
+    };
+
     const handleSyncToggle = (checked) => {
         if (checked && !isAuthenticated) {
             window.location.href = config.GITHUB_AUTH_URL;
@@ -159,6 +199,25 @@ function App() {
 
     const showBackupModal = () => {
         setBackupModalVisible(true);
+    };
+
+    const handleBackupModalOk = () => {
+        setBackupModalVisible(false);
+        uploadToGist();
+    };
+
+    const handleBackupModalCancel = () => {
+        setBackupModalVisible(false);
+    };
+
+    const uploadToGist = async () => {
+        try {
+            await api.uploadToGist(backupMode);
+            message.success('数据成功上传到Gist');
+        } catch (error) {
+            console.error('上传到Gist失败:', error);
+            message.error('上传到Gist失败');
+        }
     };
 
     const showRestoreModal = async () => {
@@ -192,13 +251,45 @@ function App() {
         }
     };
 
+    const handleRestoreModalOk = async (gistId) => {
+        try {
+            await api.restoreFromGist(gistId);
+            message.success('数据成功从Gist恢复');
+            await loadTOTPs();
+            setRestoreModalVisible(false);
+        } catch (error) {
+            console.error('从Gist恢复数据失败:', error);
+            message.error('从Gist恢复数据失败');
+        }
+    };
+
+    const deleteBackup = async (gistId) => {
+        try {
+            console.log('Deleting backup with ID:', gistId);
+            const response = await api.deleteBackup(gistId);
+            console.log('Delete response:', response);
+
+            if (response.status === 200) {
+                message.success('备份已成功删除');
+                console.log('Fetching updated TOTP list...');
+                await loadTOTPs();
+                setRestoreModalVisible(false);
+            } else {
+                throw new Error('删除失败');
+            }
+        } catch (error) {
+            console.error('删除备份失败:', error);
+            message.error('删除备份失败: ' + (error.response?.data?.message || error.message));
+        }
+    };
+
     const formatSecret = useCallback((secret) => {
         const cleanSecret = secret.replace(/\s+/g, '');
         return cleanSecret.match(/.{1,4}/g)?.join(' ') || cleanSecret;
     }, []);
 
     const handleQRUpload = async (file) => {
-        setImportStatus({loading: true, count: 0});
+        setImportStatus({ loading: true, count: 0 });
         try {
             const dataUrl = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -225,7 +316,7 @@ function App() {
             if (code) {
                 const response = await api.importTOTP(code.data);
                 if (response.data.success) {
-                    setImportStatus({loading: false, count: response.data.count});
+                    setImportStatus({ loading: false, count: response.data.count });
                     message.success(`成功导入 ${response.data.count} 个TOTP`);
                     await loadTOTPs();
                 } else {
@@ -237,7 +328,7 @@ function App() {
         } catch (error) {
             console.error('QR上传错误:', error);
             message.error(error.message || 'TOTP导入过程中发生错误');
-            setImportStatus({loading: false, count: 0});
+            setImportStatus({ loading: false, count: 0 });
         }
         return false;
     };
@@ -276,6 +367,7 @@ function App() {
             render: (text, record) => (
                 <Space>
                     <Text strong>{tokens[record.id] || '未生成'}</Text>
+                    <CountdownTimer onComplete={() => generateToken(record.id)} />
                 </Space>
             ),
         },
@@ -287,7 +379,7 @@ function App() {
                     <Button onClick={() => generateToken(record.id)} type="primary" size="small">
                         生成令牌
                     </Button>
-                    <Button onClick={() => showQRCode(record)} size="small" icon={<QrcodeOutlined/>}>
+                    <Button onClick={() => showQRCode(record)} size="small" icon={<QrcodeOutlined />}>
                         导出
                     </Button>
                     <Button onClick={() => deleteTOTP(record.id)} danger size="small">
@@ -300,77 +392,72 @@ function App() {
 
     const renderContent = () => (
         <PageContainer>
-            <Card style={{marginTop: 16}}>
-                <Space direction="vertical" size="large" style={{width: '100%'}}>
-                    <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={24} md={24} lg={12}>
-                            <Space direction="vertical" style={{width: '100%'}}>
-                                <Input
-                                    placeholder="用户信息"
-                                    value={userInfo}
-                                    onChange={(e) => setUserInfo(e.target.value)}
-                                    style={{width: '100%'}}
-                                />
-                                <Input
-                                    placeholder="密钥"
-                                    value={secret}
-                                    onChange={(e) => setSecret(formatSecret(e.target.value))}
-                                    style={{width: '100%'}}
-                                />
-                                <Button type="primary" onClick={addTOTP} icon={<PlusOutlined/>} style={{width: '100%'}}>
-                                    添加
-                                </Button>
-                            </Space>
-                        </Col>
-                        <Col xs={24} sm={24} md={24} lg={12}>
-                            <Space direction="vertical" style={{width: '100%'}}>
-                                <Switch
-                                    checked={syncEnabled}
-                                    onChange={handleSyncToggle}
-                                    checkedChildren="同步开启"
-                                    unCheckedChildren="同步关闭"
-                                    style={{width: '100%'}}
-                                />
-                                {syncEnabled && (
-                                    <>
-                                        <Button onClick={showBackupModal} icon={<UploadOutlined/>} style={{width: '100%'}}>
-                                            上传
-                                        </Button>
-                                        <Button onClick={showRestoreModal} icon={<SyncOutlined/>} style={{width: '100%'}}>
-                                            恢复
-                                        </Button>
-                                    </>
-                                )}
-                                <Button
-                                    onClick={() => Modal.confirm({
-                                        title: '确认清除所有TOTP？',
-                                        content: '此操作将删除所有已添加的TOTP，不可恢复。',
-                                        onOk: clearAllTOTPs,
-                                        okText: '确认',
-                                        cancelText: '取消',
-                                    })}
-                                    icon={<ClearOutlined/>}
-                                    danger
-                                    style={{width: '100%'}}
-                                >
-                                    清除所有
-                                </Button>
-                            </Space>
-                        </Col>
-                    </Row>
+            <Card style={{ marginTop: 16 }}>
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: isDesktopOrLaptop ? 'row' : 'column', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+                        <Space direction={isDesktopOrLaptop ? 'horizontal' : 'vertical'} style={{ width: isDesktopOrLaptop ? 'auto' : '100%' }}>
+                            <Input
+                                placeholder="用户信息"
+                                value={userInfo}
+                                onChange={(e) => setUserInfo(e.target.value)}
+                                style={{ width: isDesktopOrLaptop ? 200 : '100%' }}
+                            />
+                            <Input
+                                placeholder="密钥"
+                                value={secret}
+                                onChange={(e) => setSecret(formatSecret(e.target.value))}
+                                style={{ width: isDesktopOrLaptop ? 200 : '100%' }}
+                            />
+                            <Button type="primary" onClick={addTOTP} icon={<PlusOutlined />} style={{ width: isDesktopOrLaptop ? 'auto' : '100%' }}>
+                                添加
+                            </Button>
+                        </Space>
+                        <Space direction={isDesktopOrLaptop ? 'horizontal' : 'vertical'} style={{ width: isDesktopOrLaptop ? 'auto' : '100%' }}>
+                            <Switch
+                                checked={syncEnabled}
+                                onChange={handleSyncToggle}
+                                checkedChildren="同步开启"
+                                unCheckedChildren="同步关闭"
+                            />
+                            {syncEnabled && (
+                                <>
+                                    <Button onClick={showBackupModal} icon={<UploadOutlined />} style={{ width: isDesktopOrLaptop ? 'auto' : '100%' }}>
+                                        上传
+                                    </Button>
+                                    <Button onClick={showRestoreModal} icon={<SyncOutlined />} style={{ width: isDesktopOrLaptop ? 'auto' : '100%' }}>
+                                        恢复
+                                    </Button>
+                                </>
+                            )}
+                            <Button
+                                onClick={() => Modal.confirm({
+                                    title: '确认清除所有TOTP？',
+                                    content: '此操作将删除所有已添加的TOTP，不可恢复。',
+                                    onOk: clearAllTOTPs,
+                                    okText: '确认',
+                                    cancelText: '取消',
+                                })}
+                                icon={<ClearOutlined />}
+                                danger
+                                style={{ width: isDesktopOrLaptop ? 'auto' : '100%' }}
+                            >
+                                清除所有
+                            </Button>
+                        </Space>
+                    </div>
                     <Dragger {...draggerProps}>
                         <p className="ant-upload-drag-icon">
-                            <QrcodeOutlined/>
+                            <QrcodeOutlined />
                         </p>
                         <p className="ant-upload-text">点击或拖拽二维码图片到此区域以导入TOTP</p>
                     </Dragger>
                     {importStatus.loading && (
-                        <div style={{textAlign: 'center', marginTop: '10px'}}>
-                            <Spin tip="正在导入TOTP..."/>
+                        <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                            <Spin tip="正在导入TOTP..." />
                         </div>
                     )}
                     {importStatus.count > 0 && (
-                        <div style={{textAlign: 'center', marginTop: '10px'}}>
+                        <div style={{ textAlign: 'center', marginTop: '10px' }}>
                             <Alert
                                 message={`成功导入 ${importStatus.count} 个TOTP`}
                                 type="success"
@@ -385,8 +472,8 @@ function App() {
                         locale={{
                             emptyText: 'TOTP列表为空'
                         }}
-                        pagination={{pageSize: 10}}
-                        scroll={{x: 'max-content'}}
+                        pagination={{ pageSize: 10 }}
+                        scroll={{ x: 'max-content' }}
                     />
                 </Space>
             </Card>
@@ -394,36 +481,30 @@ function App() {
     );
 
     return (
-        <Layout style={{minHeight: '100vh'}}>
+        <Layout style={{ minHeight: '100vh' }}>
             {isDesktopOrLaptop ? (
-                <Layout>
-                    <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
-                        <div className="logo" style={{height: '32px', margin: '16px', background: 'rgba(255, 255, 255, 0.3)'}} />
-                        <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline">
-                            <Menu.Item key="1" icon={<QrcodeOutlined />}>
-                                TOTP管理
-                            </Menu.Item>
+                <>
+                    <Header style={{ display: 'flex', alignItems: 'center' }}>
+                        <div className="logo" style={{ color: 'white', fontSize: '18px', fontWeight: 'bold', marginRight: '20px' }}>
+                            TOTP Token Manager
+                        </div>
+                        <Menu theme="dark" mode="horizontal" defaultSelectedKeys={['1']} style={{ flex: 1 }}>
+                            <Menu.Item key="1">主页</Menu.Item>
                         </Menu>
-                    </Sider>
-                    <Layout className="site-layout">
-                        <Header className="site-layout-background" style={{ padding: 0 }} />
-                        <Content style={{ margin: '0 16px' }}>
-                            {renderContent()}
-                        </Content>
-                        <Footer style={{ textAlign: 'center' }}>
-                            TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
-                        </Footer>
-                    </Layout>
-                </Layout>
+                    </Header>
+                    <Content style={{ padding: '0 50px' }}>
+                        {renderContent()}
+                    </Content>
+                </>
             ) : (
                 <>
-                    <Header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                        <div className="logo" style={{color: 'white', fontSize: '16px', fontWeight: 'bold'}}>
+                    <Header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="logo" style={{ color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
                             TOTP Token Manager
                         </div>
                         <Button type="primary" onClick={() => setDrawerVisible(true)} icon={<MenuOutlined />} />
                     </Header>
-                    <Content style={{padding: '16px'}}>
+                    <Content style={{ padding: '16px' }}>
                         {renderContent()}
                     </Content>
                     <Drawer
@@ -433,23 +514,25 @@ function App() {
                         open={drawerVisible}
                     >
                         <Menu mode="inline" defaultSelectedKeys={['1']}>
-                            <Menu.Item key="1" icon={<QrcodeOutlined/>}>
+                            <Menu.Item key="1" icon={<QrcodeOutlined />}>
                                 TOTP管理
                             </Menu.Item>
                         </Menu>
                     </Drawer>
-                    <Footer style={{textAlign: 'center'}}>
-                        TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
-                    </Footer>
                 </>
             )}
+            <Footer style={{ textAlign: 'center' }}>
+                TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
+            </Footer>
 
-            {/* 模态框部分保持不变 */}
             <Modal
                 title="TOTP 二维码"
                 open={qrModalVisible}
                 onCancel={() => setQrModalVisible(false)}
                 footer={[
+                    <Button key="download" type="primary" onClick={downloadQRCode}>
+                        下载二维码
+                    </Button>,
                     <Button key="close" onClick={() => setQrModalVisible(false)}>
                         关闭
                     </Button>,
@@ -471,11 +554,8 @@ function App() {
             <Modal
                 title="选择备份模式"
                 open={backupModalVisible}
-                onOk={() => {
-                    setBackupModalVisible(false);
-                    // 在这里实现备份逻辑
-                }}
-                onCancel={() => setBackupModalVisible(false)}
+                onOk={handleBackupModalOk}
+                onCancel={handleBackupModalCancel}
             >
                 <Radio.Group onChange={(e) => setBackupMode(e.target.value)} value={backupMode}>
                     <Radio value="update">更新现有备份</Radio>
@@ -490,8 +570,8 @@ function App() {
                 footer={null}
             >
                 {isLoadingBackups ? (
-                    <div style={{textAlign: 'center', padding: '20px'}}>
-                        <Spin tip="加载备份版本中..."/>
+                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                        <Spin tip="加载备份版本中..." />
                     </div>
                 ) : backupVersions.length > 0 ? (
                     <List
@@ -499,19 +579,14 @@ function App() {
                         renderItem={item => (
                             <List.Item
                                 actions={[
-                                    <Button onClick={() => {
-                                        // 在这里实现恢复逻辑
-                                        setRestoreModalVisible(false);
-                                    }}>恢复此版本</Button>,
+                                    <Button onClick={() => handleRestoreModalOk(item.id)}>恢复此版本</Button>,
                                     <Popconfirm
                                         title="确定要删除这个备份吗？"
-                                        onConfirm={() => {
-                                            // 在这里实现删除备份逻辑
-                                        }}
+                                        onConfirm={() => deleteBackup(item.id)}
                                         okText="是"
                                         cancelText="否"
                                     >
-                                        <Button danger icon={<DeleteOutlined/>}>删除</Button>
+                                        <Button danger icon={<DeleteOutlined />}>删除</Button>
                                     </Popconfirm>
                                 ]}
                             >
