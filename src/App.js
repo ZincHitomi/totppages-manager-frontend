@@ -332,12 +332,10 @@ function App() {
                                 />
                                 {syncEnabled && (
                                     <>
-                                        <Button onClick={showBackupModal} icon={<UploadOutlined/>}
-                                                style={{width: '100%'}}>
+                                        <Button onClick={showBackupModal} icon={<UploadOutlined/>} style={{width: '100%'}}>
                                             上传
                                         </Button>
-                                        <Button onClick={showRestoreModal} icon={<SyncOutlined/>}
-                                                style={{width: '100%'}}>
+                                        <Button onClick={showRestoreModal} icon={<SyncOutlined/>} style={{width: '100%'}}>
                                             恢复
                                         </Button>
                                     </>
@@ -398,7 +396,7 @@ function App() {
         <Layout style={{minHeight: '100vh'}}>
             {isDesktopOrLaptop ? (
                 <>
-                    < Header style={{display: 'flex', alignItems: 'center'}}>
+                    <Header style={{display: 'flex', alignItems: 'center'}}>
                         <div className="logo"
                              style={{color: 'white', fontSize: '18px', fontWeight: 'bold', marginRight: '20px'}}>
                             TOTP Token Manager
@@ -441,8 +439,7 @@ function App() {
                         </Content>
                     </Layout>
                 </Layout>
-            )
-            }
+            )}
             <Footer style={{textAlign: 'center'}}>
                 TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
             </Footer>
@@ -475,7 +472,7 @@ function App() {
                 open={backupModalVisible}
                 onOk={() => {
                     setBackupModalVisible(false);
-                    // Implement backup logic here
+                    // 在这里实现备份逻辑
                 }}
                 onCancel={() => setBackupModalVisible(false)}
             >
@@ -502,13 +499,13 @@ function App() {
                             <List.Item
                                 actions={[
                                     <Button onClick={() => {
-                                        // Implement restore logic here
+                                        // 在这里实现恢复逻辑
                                         setRestoreModalVisible(false);
                                     }}>恢复此版本</Button>,
                                     <Popconfirm
                                         title="确定要删除这个备份吗？"
                                         onConfirm={() => {
-                                            // Implement delete backup logic here
+                                            // 在这里实现删除备份逻辑
                                         }}
                                         okText="是"
                                         cancelText="否"
@@ -534,8 +531,7 @@ function App() {
                 )}
             </Modal>
         </Layout>
-    )
-        ;
+    );
 }
 
 export default App;
