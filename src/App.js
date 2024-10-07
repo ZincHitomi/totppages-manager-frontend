@@ -61,6 +61,7 @@ function App() {
 
     const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
     const isTabletOrMobile = useMediaQuery({maxWidth: 1023});
+    const [drawerVisible, setDrawerVisible] = useState(false);
 
     const loadTOTPs = useCallback(async () => {
         try {
@@ -410,35 +411,29 @@ function App() {
                     </Content>
                 </>
             ) : (
-                <Layout>
-                    <Sider trigger={null} collapsible collapsed={collapsed}>
-                        <div className="logo"
-                             style={{height: '32px', margin: '16px', background: 'rgba(255, 255, 255, 0.3)'}}/>
-                        <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
+                <>
+                    <Header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <div className="logo" style={{color: 'white', fontSize: '16px', fontWeight: 'bold'}}>
+                            TOTP Token Manager
+                        </div>
+                        <Button type="primary" onClick={() => setDrawerVisible(true)} icon={<MenuOutlined />} />
+                    </Header>
+                    <Content style={{padding: '16px'}}>
+                        {renderContent()}
+                    </Content>
+                    <Drawer
+                        title="菜单"
+                        placement="left"
+                        onClose={() => setDrawerVisible(false)}
+                        open={drawerVisible}
+                    >
+                        <Menu mode="inline" defaultSelectedKeys={['1']}>
                             <Menu.Item key="1" icon={<QrcodeOutlined/>}>
                                 TOTP管理
                             </Menu.Item>
                         </Menu>
-                    </Sider>
-                    <Layout className="site-layout">
-                        <Header className="site-layout-background" style={{padding: 0}}>
-                            {React.createElement(collapsed ? MenuOutlined : MenuOutlined, {
-                                className: 'trigger',
-                                onClick: () => setCollapsed(!collapsed),
-                            })}
-                        </Header>
-                        <Content
-                            className="site-layout-background"
-                            style={{
-                                margin: '24px 16px',
-                                padding: 24,
-                                minHeight: 280,
-                            }}
-                        >
-                            {renderContent()}
-                        </Content>
-                    </Layout>
-                </Layout>
+                    </Drawer>
+                </>
             )}
             <Footer style={{textAlign: 'center'}}>
                 TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
