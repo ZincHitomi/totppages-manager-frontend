@@ -39,9 +39,10 @@ import * as api from './services/api';
 import config from './config';
 import {useMediaQuery} from 'react-responsive';
 
-const {Header, Content, Footer} = Layout;
+const {Header, Content, Footer, Sider} = Layout;
 const {Dragger} = Upload;
 const {Text} = Typography;
+
 function App() {
     const [totps, setTotps] = useState([]);
     const [userInfo, setUserInfo] = useState('');
@@ -58,6 +59,7 @@ function App() {
     const [isLoadingBackups, setIsLoadingBackups] = useState(false);
     const [importStatus, setImportStatus] = useState({loading: false, count: 0});
     const [drawerVisible, setDrawerVisible] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
 
     const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
 
@@ -394,20 +396,25 @@ function App() {
     return (
         <Layout style={{minHeight: '100vh'}}>
             {isDesktopOrLaptop ? (
-                <>
-                    <Header style={{display: 'flex', alignItems: 'center'}}>
-                        <div className="logo"
-                             style={{color: 'white', fontSize: '18px', fontWeight: 'bold', marginRight: '20px'}}>
-                            TOTP Token Manager
-                        </div>
-                        <Menu theme="dark" mode="horizontal" defaultSelectedKeys={['1']} style={{flex: 1}}>
-                            <Menu.Item key="1">主页</Menu.Item>
+                <Layout>
+                    <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
+                        <div className="logo" style={{height: '32px', margin: '16px', background: 'rgba(255, 255, 255, 0.3)'}} />
+                        <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline">
+                            <Menu.Item key="1" icon={<QrcodeOutlined />}>
+                                TOTP管理
+                            </Menu.Item>
                         </Menu>
-                    </Header>
-                    <Content style={{padding: '0 50px'}}>
-                        {renderContent()}
-                    </Content>
-                </>
+                    </Sider>
+                    <Layout className="site-layout">
+                        <Header className="site-layout-background" style={{ padding: 0 }} />
+                        <Content style={{ margin: '0 16px' }}>
+                            {renderContent()}
+                        </Content>
+                        <Footer style={{ textAlign: 'center' }}>
+                            TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
+                        </Footer>
+                    </Layout>
+                </Layout>
             ) : (
                 <>
                     <Header style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -431,12 +438,13 @@ function App() {
                             </Menu.Item>
                         </Menu>
                     </Drawer>
+                    <Footer style={{textAlign: 'center'}}>
+                        TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
+                    </Footer>
                 </>
             )}
-            <Footer style={{textAlign: 'center'}}>
-                TOTP Token Manager ©{new Date().getFullYear()} Created by Lones
-            </Footer>
 
+            {/* 模态框部分保持不变 */}
             <Modal
                 title="TOTP 二维码"
                 open={qrModalVisible}
