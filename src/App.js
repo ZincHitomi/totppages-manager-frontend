@@ -39,10 +39,9 @@ import * as api from './services/api';
 import config from './config';
 import {useMediaQuery} from 'react-responsive';
 
-const {Header, Content, Footer, Sider} = Layout;
+const {Header, Content, Footer} = Layout;
 const {Dragger} = Upload;
 const {Text} = Typography;
-
 function App() {
     const [totps, setTotps] = useState([]);
     const [userInfo, setUserInfo] = useState('');
@@ -58,11 +57,9 @@ function App() {
     const [restoreModalVisible, setRestoreModalVisible] = useState(false);
     const [isLoadingBackups, setIsLoadingBackups] = useState(false);
     const [importStatus, setImportStatus] = useState({loading: false, count: 0});
-    const [collapsed, setCollapsed] = useState(false);
+    const [drawerVisible, setDrawerVisible] = useState(false);
 
     const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
-    const isTabletOrMobile = useMediaQuery({maxWidth: 1023});
-    const [drawerVisible, setDrawerVisible] = useState(false);
 
     const loadTOTPs = useCallback(async () => {
         try {
