@@ -11,7 +11,7 @@ import { useMediaQuery } from 'react-responsive';
 
 const { Header, Content, Footer } = Layout;
 const { Dragger } = Upload;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const CountdownTimer = React.memo(({ onComplete }) => {
     const [countdown, setCountdown] = useState(30);
