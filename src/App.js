@@ -153,63 +153,50 @@ function App() {
     }, [username, password]);
     const handleLogout = useCallback(async () => {
         try {
-            // 发送请求到后端退出登录 API
-            const response = await api.logout('/api/logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            console.log(response)
-            if (response.status === 200) {
-                // 清除登录状态相关的逻辑，例如清除本地存储中的登录信息等
-                localStorage.removeItem('isLoggedIn');
-                localStorage.removeItem('userInfo');
-                Cookies.remove("sessionToken")
-                setIsLoggedIn(false);
-                setUserInfo('');
-                setPassword('');
-                message.success('已退出登录');
-            } else {
-                const data = await response.json();
-                message.error(data.error || '退出登录失败');
-            }
+            await api.logout();
+            Cookies.remove('sessionToken');
+            setIsLoggedIn(false);
+            setTotps([]);
+            setSyncEnabled(false);
+            setUserInfo('');
+            setPassword('');
+            message.success('已退出登录');
         } catch (error) {
-            message.error('退出登录时发生错误');
+            console.error('退出登录失败:', error);
+            message.error('退出登录失败');
         }
     }, []);
+
     const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
 
     const loadTOTPs = useCallback(async () => {
+        if (!isLoggedIn) return;
         try {
-            console.log('开始加载TOTP列表');
             const response = await api.getTOTPs();
-            console.log('服务器返回的TOTP列表:', response.data);
             setTotps(response.data);
         } catch (error) {
             console.error('加载TOTP列表失败:', error);
             message.error('加载TOTP列表失败');
         }
-    }, []);
+    }, [isLoggedIn]);
 
     const checkAuthStatus = useCallback(async () => {
+        if (!isLoggedIn) return;
         try {
             const response = await api.getGithubAuthStatus();
-            setIsAuthenticated(response.data.authenticated);
             setSyncEnabled(response.data.authenticated);
         } catch (error) {
-            console.error('Failed to check auth status:', error);
+            console.error('Failed to check GitHub auth status:', error);
         }
-    }, []);
+    }, [isLoggedIn]);
 
     useEffect(() => {
         const sessionToken = Cookies.get('sessionToken');
         if (sessionToken) {
             setIsLoggedIn(true);
             loadTOTPs();
-            // checkAuthStatus();
+            checkAuthStatus();
         }
-
     }, [loadTOTPs, checkAuthStatus]);
 
     const addTOTP = useCallback(async () => {
