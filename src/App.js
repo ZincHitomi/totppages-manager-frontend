@@ -109,6 +109,13 @@ function App() {
     const [password, setPassword] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const formattedTotps = useMemo(() =>
+            totps.map(totp => ({
+                ...totp,
+                formattedSecret: formatSecret(totp.secret)
+            })),
+        [totps, formatSecret]
+    );
     const handleRegister = useCallback(async () => {
         if (!username || !password) {
             message.warning('用户名和密码不能为空');
@@ -138,18 +145,20 @@ function App() {
         }
         try {
             const response = await api.login(username, password);
-            console.log(response)
             if (response.status === 200) {
-                // 保存会话令牌
                 Cookies.set('sessionToken', response.data.token);
-                message.success('登录成功');
                 setIsLoggedIn(true);
+                message.success('登录成功');
             } else {
                 throw new Error(response.data.error || '登录失败');
             }
         } catch (error) {
             console.error('登录失败:', error);
-            message.error('登录失败: ' + error.message);
+            if (error.response && error.response.status === 401) {
+                message.error('用户名或密码错误');
+            } else {
+                message.error('登录失败: ' + error.message);
+            }
         }
     }, [username, password]);
     const handleLogout = useCallback(async () => {
@@ -174,7 +183,6 @@ function App() {
 
     const loadTOTPs = useCallback(async () => {
         if (!isLoggedIn) return;
-
         try {
             setIsLoadingTOTPs(true);
             const response = await api.getTOTPs();
@@ -208,14 +216,16 @@ function App() {
             message.error('令牌生成失败');
         }
     }, []);
-
-
     useEffect(() => {
-        if (isLoggedIn) {
+        const token = Cookies.get('sessionToken');
+        if (token) {
+            setIsLoggedIn(true);
             loadTOTPs();
             checkAuthStatus();
         }
     }, [isLoggedIn,loadTOTPs, checkAuthStatus]);
+
+
     useEffect(() => {
         if (!isLoggedIn) return;
 
@@ -244,7 +254,7 @@ function App() {
             const processedSecret = secret.replace(/\s+/g, '');
             await api.addTOTP(userInfo, processedSecret);
             message.success('TOTP添加成功');
-            await loadTOTPs();
+            await loadTOTPs(); // 刷新列表
             setUserInfo('');
             setSecret('');
         } catch (error) {
@@ -606,7 +616,7 @@ function App() {
                             )}
                             <Table
                                 columns={columns}
-                                dataSource={totps}
+                                dataSource={formattedTotps}
                                 rowKey="id"
                                 locale={{
                                     emptyText: 'TOTP 列表为空'
