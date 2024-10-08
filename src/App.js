@@ -207,7 +207,7 @@ function App() {
         }
         // loadTOTPs();
         // checkAuthStatus();
-    }, [loadTOTPs, checkAuthStatus]);
+    }, []);
 
     const addTOTP = useCallback(async () => {
         if (!userInfo || !secret) {
