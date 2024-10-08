@@ -109,7 +109,7 @@ function App() {
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const handleRegister = useCallback(async () => {
-        if (!username ||!password) {
+        if (!username || !password) {
             message.warning('用户名和密码不能为空');
             return;
         }
@@ -159,7 +159,7 @@ function App() {
                 }
             });
             console.log(response)
-            if (response.statusText==="OK") {
+            if (response.statusText === "OK") {
                 // 清除登录状态相关的逻辑，例如清除本地存储中的登录信息等
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('userInfo');
@@ -204,9 +204,10 @@ function App() {
         const sessionToken = Cookies.get('sessionToken');
         if (sessionToken) {
             setIsLoggedIn(true);
+            loadTOTPs();
+            checkAuthStatus();
         }
-        // loadTOTPs();
-        // checkAuthStatus();
+
     }, [loadTOTPs, checkAuthStatus]);
 
     const addTOTP = useCallback(async () => {
