@@ -174,6 +174,7 @@ function App() {
 
     const loadTOTPs = useCallback(async () => {
         if (!isLoggedIn) return;
+
         try {
             setIsLoadingTOTPs(true);
             const response = await api.getTOTPs();
