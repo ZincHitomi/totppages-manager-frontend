@@ -207,7 +207,7 @@ function App() {
         if (sessionToken) {
             setIsLoggedIn(true);
             loadTOTPs();
-            checkAuthStatus();
+            // checkAuthStatus();
         }
 
     }, [loadTOTPs, checkAuthStatus]);
