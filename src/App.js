@@ -223,17 +223,21 @@ function App() {
     }, [isLoggedIn]);
     const generateToken = useCallback(async (id) => {
         try {
+            if (totps.length === 0) {
+                message.info('TOTP 列表为空，无法生成令牌。');
+                return;
+            }
             const response = await api.generateToken(id);
             if (response.data.error) {
                 message.error(response.data.error);
             } else {
-                setTokens(prev => ({...prev, [id]: response.data.token}));
+                setTokens(prev => ({...prev, [id]: response.data.token }));
             }
         } catch (error) {
             console.error('令牌生成失败:', error);
             message.error('令牌生成失败');
         }
-    }, []);
+    }, [totps]);
     useEffect(() => {
         const token = Cookies.get('sessionToken');
         if (token) {
