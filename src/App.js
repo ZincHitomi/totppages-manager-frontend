@@ -121,13 +121,12 @@ function App() {
         [totps, formatSecret]
     );
     const handleRegister = useCallback(async () => {
-        if (!username || !password) {
+        if (!username ||!password) {
             message.warning('用户名和密码不能为空');
             return;
         }
         try {
             const response = await api.register(username, password);
-            console.log(response)
             if (response.status === 201) {
                 // 如果注册后后端返回会话令牌，也进行保存
                 Cookies.set('sessionToken', response.data);
@@ -137,13 +136,17 @@ function App() {
                 throw new Error(response.data.error || '注册失败');
             }
         } catch (error) {
-            console.error('注册失败:', error);
-            message.error('注册失败: ' + error.message);
+            if (error.response && error.response.data && error.response.data.error === 'Username already exists. Please choose a different one.') {
+                message.error('用户名已存在，请选择其他用户名进行注册。');
+            } else {
+                console.error('注册失败:', error);
+                message.error('注册失败: ' + error.message);
+            }
         }
     }, [username, password]);
 
     const handleLogin = useCallback(async () => {
-        if (!username || !password) {
+        if (!username ||!password) {
             message.warning('用户名和密码不能为空');
             return;
         }
@@ -157,10 +160,12 @@ function App() {
                 throw new Error(response.data.error || '登录失败');
             }
         } catch (error) {
-            console.error('登录失败:', error);
             if (error.response && error.response.status === 401) {
                 message.error('用户名或密码错误');
+            } else if (error.response && error.response.data && error.response.data.error === 'Invalid username. User not found.') {
+                message.error('用户名不存在，请检查输入或进行注册。');
             } else {
+                console.error('登录失败:', error);
                 message.error('登录失败: ' + error.message);
             }
         }
