@@ -446,6 +446,7 @@ function App() {
 
             if (code) {
                 const response = await api.importTOTP(code.data);
+                console.log(response)
                 if (response.data.success) {
                     setImportStatus({loading: false, count: response.data.count});
                     message.success(`成功导入 ${response.data.count} 个TOTP`);
