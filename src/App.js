@@ -115,7 +115,7 @@ function App() {
         }
         try {
             const response = await api.register(username, password);
-            if (response.statusText==="Created") {
+            if (response.status === 200) {
                 // 如果注册后后端返回会话令牌，也进行保存
                 Cookies.set('sessionToken', response.data);
                 message.success('注册成功');
@@ -136,7 +136,7 @@ function App() {
         }
         try {
             const response = await api.login(username, password);
-            if (response.statusText === "OK") {
+            if (response.status === 200) {
                 // 保存会话令牌
                 Cookies.set('sessionToken', response.data.token);
                 message.success('登录成功');
@@ -207,7 +207,7 @@ function App() {
         }
         // loadTOTPs();
         // checkAuthStatus();
-    }, []);
+    }, [loadTOTPs, checkAuthStatus]);
 
     const addTOTP = useCallback(async () => {
         if (!userInfo || !secret) {
