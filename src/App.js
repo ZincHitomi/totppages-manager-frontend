@@ -115,7 +115,8 @@ function App() {
         }
         try {
             const response = await api.register(username, password);
-            if (response.status === 200) {
+            console.log(response)
+            if (response.status === 201) {
                 // 如果注册后后端返回会话令牌，也进行保存
                 Cookies.set('sessionToken', response.data);
                 message.success('注册成功');
@@ -136,6 +137,7 @@ function App() {
         }
         try {
             const response = await api.login(username, password);
+            console.log(response)
             if (response.status === 200) {
                 // 保存会话令牌
                 Cookies.set('sessionToken', response.data.token);
@@ -159,7 +161,7 @@ function App() {
                 }
             });
             console.log(response)
-            if (response.statusText === "OK") {
+            if (response.status === 200) {
                 // 清除登录状态相关的逻辑，例如清除本地存储中的登录信息等
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('userInfo');
