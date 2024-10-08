@@ -170,17 +170,21 @@ function App() {
 
     const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
 
+    const [isLoadingTOTPs, setIsLoadingTOTPs] = useState(false);
+
     const loadTOTPs = useCallback(async () => {
         if (!isLoggedIn) return;
         try {
+            setIsLoadingTOTPs(true);
             const response = await api.getTOTPs();
             setTotps(response.data);
         } catch (error) {
             console.error('加载TOTP列表失败:', error);
             message.error('加载TOTP列表失败');
+        } finally {
+            setIsLoadingTOTPs(false);
         }
     }, [isLoggedIn]);
-
     const checkAuthStatus = useCallback(async () => {
         if (!isLoggedIn) return;
         try {
@@ -206,13 +210,11 @@ function App() {
 
 
     useEffect(() => {
-        const sessionToken = Cookies.get('sessionToken');
-        if (sessionToken) {
-            setIsLoggedIn(true);
+        if (isLoggedIn) {
             loadTOTPs();
             checkAuthStatus();
         }
-    }, [loadTOTPs, checkAuthStatus]);
+    }, [isLoggedIn,loadTOTPs, checkAuthStatus]);
     useEffect(() => {
         if (!isLoggedIn) return;
 
@@ -435,7 +437,7 @@ function App() {
                 if (response.data.success) {
                     setImportStatus({loading: false, count: response.data.count});
                     message.success(`成功导入 ${response.data.count} 个TOTP`);
-                    await loadTOTPs();
+                    await loadTOTPs(); // 确保这里调用了 loadTOTPs 函数
                 } else {
                     throw new Error(response.data.error || 'TOTP导入失败');
                 }
@@ -610,6 +612,7 @@ function App() {
                                 }}
                                 pagination={{pageSize: 10}}
                                 scroll={{x: 'max-content'}}
+                                loading={isLoadingTOTPs}
                             />
                         </div>
                         <div style={{display: 'flex', justifyContent: 'flex-end'}}>
