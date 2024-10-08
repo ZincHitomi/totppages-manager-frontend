@@ -129,7 +129,7 @@ function App() {
             const response = await api.register(username, password);
             if (response.status === 201) {
                 // 如果注册后后端返回会话令牌，也进行保存
-                Cookies.set('sessionToken', response.data);
+                Cookies.set('sessionToken', response.data.token);
                 message.success('注册成功');
                 setIsRegistering(false);
             } else {
@@ -207,7 +207,16 @@ function App() {
         if (!isLoggedIn) return;
         try {
             const response = await api.getGithubAuthStatus();
-            setSyncEnabled(response.data.authenticated);
+            if (response.data.isTokenExpired) {
+                const confirmResult = window.confirm('GitHub 令牌已过期，是否重新授权？');
+                if (confirmResult) {
+                    window.location.href = config.GITHUB_AUTH_URL;
+                } else {
+                    setSyncEnabled(false);
+                }
+            } else {
+                setSyncEnabled(response.data.authenticated);
+            }
         } catch (error) {
             console.error('Failed to check GitHub auth status:', error);
         }
