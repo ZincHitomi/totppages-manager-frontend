@@ -5,6 +5,7 @@ import config from '../config';
 const api = axios.create({
     baseURL: config.API_BASE_URL,
 });
+
 api.interceptors.request.use((config) => {
     const sessionToken = Cookies.get('sessionToken');
     if (sessionToken) {

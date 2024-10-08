@@ -49,15 +49,17 @@ const CountdownTimer = React.memo(({onComplete}) => {
     const [countdown, setCountdown] = useState(30);
 
     useEffect(() => {
+        const calculateCountdown = () => {
+            const now = Math.floor(Date.now() / 1000);
+            return 30 - (now % 30);
+        };
+
         const timer = setInterval(() => {
-            setCountdown((prevCount) => {
-                if (prevCount === 1) {
-                    clearInterval(timer);
-                    onComplete();
-                    return 30;
-                }
-                return prevCount - 1;
-            });
+            const newCountdown = calculateCountdown();
+            setCountdown(newCountdown);
+            if (newCountdown === 30) {
+                onComplete();
+            }
         }, 1000);
 
         return () => clearInterval(timer);
@@ -96,7 +98,6 @@ function App() {
     const [currentQR, setCurrentQR] = useState('');
     const [tokens, setTokens] = useState({});
     const [syncEnabled, setSyncEnabled] = useState(false);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [backupMode, setBackupMode] = useState('update');
     const [backupModalVisible, setBackupModalVisible] = useState(false);
     const [backupVersions, setBackupVersions] = useState([]);
@@ -108,6 +109,17 @@ function App() {
     const [password, setPassword] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const formatSecret = useCallback((secret) => {
+        const cleanSecret = secret.replace(/\s+/g, '');
+        return cleanSecret.match(/.{1,4}/g)?.join(' ') || cleanSecret;
+    }, []);
+    const formattedTotps = useMemo(() =>
+            totps.map(totp => ({
+                ...totp,
+                formattedSecret: formatSecret(totp.secret)
+            })),
+        [totps, formatSecret]
+    );
     const handleRegister = useCallback(async () => {
         if (!username ||!password) {
             message.warning('用户名和密码不能为空');
@@ -115,99 +127,145 @@ function App() {
         }
         try {
             const response = await api.register(username, password);
-            if (response.statusText==="Created") {
+            if (response.status === 201) {
                 // 如果注册后后端返回会话令牌，也进行保存
-                Cookies.set('sessionToken', response.data);
+                Cookies.set('sessionToken', response.data.token);
                 message.success('注册成功');
                 setIsRegistering(false);
             } else {
                 throw new Error(response.data.error || '注册失败');
             }
         } catch (error) {
-            console.error('注册失败:', error);
-            message.error('注册失败: ' + error.message);
+            if (error.response && error.response.data && error.response.data.error === 'Username already exists. Please choose a different one.') {
+                message.error('用户名已存在，请选择其他用户名进行注册。');
+            } else {
+                console.error('注册失败:', error);
+                message.error('注册失败: ' + error.message);
+            }
         }
     }, [username, password]);
 
     const handleLogin = useCallback(async () => {
-        if (!username || !password) {
+        if (!username ||!password) {
             message.warning('用户名和密码不能为空');
             return;
         }
         try {
             const response = await api.login(username, password);
-            if (response.statusText === "OK") {
-                // 保存会话令牌
+            if (response.status === 200) {
                 Cookies.set('sessionToken', response.data.token);
-                message.success('登录成功');
                 setIsLoggedIn(true);
+                message.success('登录成功');
             } else {
                 throw new Error(response.data.error || '登录失败');
             }
         } catch (error) {
-            console.error('登录失败:', error);
-            message.error('登录失败: ' + error.message);
+            if (error.response && error.response.status === 401) {
+                message.error('用户名或密码错误');
+            } else if (error.response && error.response.data && error.response.data.error === 'Invalid username. User not found.') {
+                message.error('用户名不存在，请检查输入或进行注册。');
+            } else {
+                console.error('登录失败:', error);
+                message.error('登录失败: ' + error.message);
+            }
         }
     }, [username, password]);
     const handleLogout = useCallback(async () => {
         try {
-            // 发送请求到后端退出登录 API
-            const response = await api.logout('/api/logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            console.log(response)
-            if (response.statusText==="OK") {
-                // 清除登录状态相关的逻辑，例如清除本地存储中的登录信息等
-                localStorage.removeItem('isLoggedIn');
-                localStorage.removeItem('userInfo');
-                Cookies.remove("sessionToken")
-                setIsLoggedIn(false);
-                setUserInfo('');
-                setPassword('');
-                message.success('已退出登录');
-            } else {
-                const data = await response.json();
-                message.error(data.error || '退出登录失败');
-            }
+            await api.logout();
+            Cookies.remove('sessionToken');
+            setIsLoggedIn(false);
+            setTotps([]);
+            setSyncEnabled(false);
+            setUserInfo('');
+            setPassword('');
+            message.success('已退出登录');
         } catch (error) {
-            message.error('退出登录时发生错误');
+            console.error('退出登录失败:', error);
+            message.error('退出登录失败');
         }
     }, []);
+
     const isDesktopOrLaptop = useMediaQuery({minWidth: 1024});
 
+    const [isLoadingTOTPs, setIsLoadingTOTPs] = useState(false);
+
     const loadTOTPs = useCallback(async () => {
+        if (!isLoggedIn) return;
         try {
-            console.log('开始加载TOTP列表');
+            setIsLoadingTOTPs(true);
             const response = await api.getTOTPs();
-            console.log('服务器返回的TOTP列表:', response.data);
             setTotps(response.data);
         } catch (error) {
             console.error('加载TOTP列表失败:', error);
             message.error('加载TOTP列表失败');
+        } finally {
+            setIsLoadingTOTPs(false);
         }
-    }, []);
-
+    }, [isLoggedIn]);
     const checkAuthStatus = useCallback(async () => {
+        if (!isLoggedIn) return;
         try {
             const response = await api.getGithubAuthStatus();
-            setIsAuthenticated(response.data.authenticated);
-            setSyncEnabled(response.data.authenticated);
+            if (response.data.isTokenExpired) {
+                const confirmResult = window.confirm('GitHub 令牌已过期，是否重新授权？');
+                if (confirmResult) {
+                    window.location.href = config.GITHUB_AUTH_URL;
+                } else {
+                    setSyncEnabled(false);
+                }
+            } else {
+                setSyncEnabled(response.data.authenticated);
+            }
         } catch (error) {
-            console.error('Failed to check auth status:', error);
+            console.error('Failed to check GitHub auth status:', error);
         }
-    }, []);
+    }, [isLoggedIn]);
+    const generateToken = useCallback(async (id) => {
+        try {
+            if (totps.length === 0) {
+                message.info('TOTP 列表为空，无法生成令牌。');
+                return;
+            }
+            const response = await api.generateToken(id);
+            if (response.data.error) {
+                message.error(response.data.error);
+            } else {
+                setTokens(prev => ({...prev, [id]: response.data.token }));
+            }
+        } catch (error) {
+            console.error('令牌生成失败:', error);
+            message.error('令牌生成失败');
+        }
+    }, [totps]);
+    useEffect(() => {
+        const token = Cookies.get('sessionToken');
+        if (token) {
+            setIsLoggedIn(true);
+            loadTOTPs();
+            checkAuthStatus();
+        }
+    }, [isLoggedIn,loadTOTPs, checkAuthStatus]);
+
 
     useEffect(() => {
-        const sessionToken = Cookies.get('sessionToken');
-        if (sessionToken) {
-            setIsLoggedIn(true);
-        }
-        // loadTOTPs();
-        // checkAuthStatus();
-    }, []);
+        if (!isLoggedIn) return;
+
+        const generateAllTokens = () => {
+            totps.forEach(totp => generateToken(totp.id));
+        };
+
+        const now = Math.floor(Date.now() / 1000);
+        const delay = ((30 - (now % 30)) * 1000) + 50; // 加50毫秒确保我们在新周期开始后生成令牌
+
+        const timeout = setTimeout(() => {
+            generateAllTokens();
+            const interval = setInterval(generateAllTokens, 30000);
+            return () => clearInterval(interval);
+        }, delay);
+
+        return () => clearTimeout(timeout);
+    }, [isLoggedIn, totps, generateToken]);
 
     const addTOTP = useCallback(async () => {
         if (!userInfo || !secret) {
@@ -218,7 +276,7 @@ function App() {
             const processedSecret = secret.replace(/\s+/g, '');
             await api.addTOTP(userInfo, processedSecret);
             message.success('TOTP添加成功');
-            await loadTOTPs();
+            await loadTOTPs(); // 刷新列表
             setUserInfo('');
             setSecret('');
         } catch (error) {
@@ -238,19 +296,6 @@ function App() {
         }
     }, [loadTOTPs]);
 
-    const generateToken = useCallback(async (id) => {
-        try {
-            const response = await api.generateToken(id);
-            if (response.data.error) {
-                message.error(response.data.error);
-            } else {
-                setTokens(prev => ({...prev, [id]: response.data.token}));
-            }
-        } catch (error) {
-            console.error('令牌生成失败:', error);
-            message.error('令牌生成失败');
-        }
-    }, []);
 
     const showQRCode = useCallback(async (record) => {
         try {
@@ -297,7 +342,7 @@ function App() {
     };
 
     const handleSyncToggle = (checked) => {
-        if (checked && !isAuthenticated) {
+        if (checked && !syncEnabled) {
             window.location.href = config.GITHUB_AUTH_URL;
         } else {
             setSyncEnabled(checked);
@@ -390,10 +435,7 @@ function App() {
         }
     };
 
-    const formatSecret = useCallback((secret) => {
-        const cleanSecret = secret.replace(/\s+/g, '');
-        return cleanSecret.match(/.{1,4}/g)?.join(' ') || cleanSecret;
-    }, []);
+
 
     const handleQRUpload = async (file) => {
         setImportStatus({loading: true, count: 0});
@@ -422,10 +464,11 @@ function App() {
 
             if (code) {
                 const response = await api.importTOTP(code.data);
+                console.log(response)
                 if (response.data.success) {
                     setImportStatus({loading: false, count: response.data.count});
                     message.success(`成功导入 ${response.data.count} 个TOTP`);
-                    await loadTOTPs();
+                    await loadTOTPs(); // 确保这里调用了 loadTOTPs 函数
                 } else {
                     throw new Error(response.data.error || 'TOTP导入失败');
                 }
@@ -593,13 +636,14 @@ function App() {
                             )}
                             <Table
                                 columns={columns}
-                                dataSource={totps}
+                                dataSource={formattedTotps}
                                 rowKey="id"
                                 locale={{
                                     emptyText: 'TOTP 列表为空'
                                 }}
                                 pagination={{pageSize: 10}}
                                 scroll={{x: 'max-content'}}
+                                loading={isLoadingTOTPs}
                             />
                         </div>
                         <div style={{display: 'flex', justifyContent: 'flex-end'}}>
