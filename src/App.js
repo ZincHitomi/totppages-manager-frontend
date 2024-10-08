@@ -49,15 +49,17 @@ const CountdownTimer = React.memo(({onComplete}) => {
     const [countdown, setCountdown] = useState(30);
 
     useEffect(() => {
+        const calculateCountdown = () => {
+            const now = Math.floor(Date.now() / 1000);
+            return 30 - (now % 30);
+        };
+
         const timer = setInterval(() => {
-            setCountdown((prevCount) => {
-                if (prevCount === 1) {
-                    clearInterval(timer);
-                    onComplete();
-                    return 30;
-                }
-                return prevCount - 1;
-            });
+            const newCountdown = calculateCountdown();
+            setCountdown(newCountdown);
+            if (newCountdown === 30) {
+                onComplete();
+            }
         }, 1000);
 
         return () => clearInterval(timer);
@@ -96,7 +98,6 @@ function App() {
     const [currentQR, setCurrentQR] = useState('');
     const [tokens, setTokens] = useState({});
     const [syncEnabled, setSyncEnabled] = useState(false);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [backupMode, setBackupMode] = useState('update');
     const [backupModalVisible, setBackupModalVisible] = useState(false);
     const [backupVersions, setBackupVersions] = useState([]);
@@ -189,6 +190,20 @@ function App() {
             console.error('Failed to check GitHub auth status:', error);
         }
     }, [isLoggedIn]);
+    const generateToken = useCallback(async (id) => {
+        try {
+            const response = await api.generateToken(id);
+            if (response.data.error) {
+                message.error(response.data.error);
+            } else {
+                setTokens(prev => ({...prev, [id]: response.data.token}));
+            }
+        } catch (error) {
+            console.error('令牌生成失败:', error);
+            message.error('令牌生成失败');
+        }
+    }, []);
+
 
     useEffect(() => {
         const sessionToken = Cookies.get('sessionToken');
@@ -198,6 +213,24 @@ function App() {
             checkAuthStatus();
         }
     }, [loadTOTPs, checkAuthStatus]);
+    useEffect(() => {
+        if (!isLoggedIn) return;
+
+        const generateAllTokens = () => {
+            totps.forEach(totp => generateToken(totp.id));
+        };
+
+        const now = Math.floor(Date.now() / 1000);
+        const delay = ((30 - (now % 30)) * 1000) + 50; // 加50毫秒确保我们在新周期开始后生成令牌
+
+        const timeout = setTimeout(() => {
+            generateAllTokens();
+            const interval = setInterval(generateAllTokens, 30000);
+            return () => clearInterval(interval);
+        }, delay);
+
+        return () => clearTimeout(timeout);
+    }, [isLoggedIn, totps, generateToken]);
 
     const addTOTP = useCallback(async () => {
         if (!userInfo || !secret) {
@@ -228,19 +261,6 @@ function App() {
         }
     }, [loadTOTPs]);
 
-    const generateToken = useCallback(async (id) => {
-        try {
-            const response = await api.generateToken(id);
-            if (response.data.error) {
-                message.error(response.data.error);
-            } else {
-                setTokens(prev => ({...prev, [id]: response.data.token}));
-            }
-        } catch (error) {
-            console.error('令牌生成失败:', error);
-            message.error('令牌生成失败');
-        }
-    }, []);
 
     const showQRCode = useCallback(async (record) => {
         try {
@@ -287,7 +307,7 @@ function App() {
     };
 
     const handleSyncToggle = (checked) => {
-        if (checked && !isAuthenticated) {
+        if (checked && !syncEnabled) {
             window.location.href = config.GITHUB_AUTH_URL;
         } else {
             setSyncEnabled(checked);
