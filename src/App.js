@@ -109,6 +109,10 @@ function App() {
     const [password, setPassword] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const formatSecret = useCallback((secret) => {
+        const cleanSecret = secret.replace(/\s+/g, '');
+        return cleanSecret.match(/.{1,4}/g)?.join(' ') || cleanSecret;
+    }, []);
     const formattedTotps = useMemo(() =>
             totps.map(totp => ({
                 ...totp,
@@ -413,10 +417,7 @@ function App() {
         }
     };
 
-    const formatSecret = useCallback((secret) => {
-        const cleanSecret = secret.replace(/\s+/g, '');
-        return cleanSecret.match(/.{1,4}/g)?.join(' ') || cleanSecret;
-    }, []);
+
 
     const handleQRUpload = async (file) => {
         setImportStatus({loading: true, count: 0});
